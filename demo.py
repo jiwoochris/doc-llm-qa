@@ -1,10 +1,18 @@
 import streamlit as st
 
-from docllmqa.loader.pdf_loader import PDFMinerLoader
-from docllmqa.splitter.text_splitter import CharacterTextSplitter
-from docllmqa.storage.openai import ChromaVectorStore
-from docllmqa.generator.openai import LLM
+from pdfminer.high_level import extract_text
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import Chroma
+from langchain.embeddings import OpenAIEmbeddings
 
+from langchain.chat_models import ChatOpenAI
+from langchain.schema.runnable import RunnablePassthrough
+from langchain.prompts import PromptTemplate
+from langchain.schema import StrOutputParser
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def generate_response(uploaded_file, query_text):
@@ -12,24 +20,47 @@ def generate_response(uploaded_file, query_text):
     if uploaded_file is not None:
         
         # loader
-        loader = PDFMinerLoader()
-        data = loader.load(uploaded_file)
+        raw_text = extract_text(uploaded_file)
         
         # splitter
-        text_splitter = CharacterTextSplitter()
-        all_splits = text_splitter.split_documents(data)
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size = 500,
+            chunk_overlap  = 20,
+            length_function = len,
+            is_separator_regex = False,
+        )
+        all_splits = text_splitter.create_documents([raw_text])
         
+
         # storage
-        storage = ChromaVectorStore()
-        vector_store = storage.documents_embedding(all_splits)
+        vectorstore = Chroma.from_documents(documents=all_splits, embedding=OpenAIEmbeddings())
         
         # retriever
-        retriever = vector_store.as_retriever()
+        retriever = vectorstore.as_retriever()
         
         # generator
-        generator = LLM(retriever)
-        response = generator.generate_response(query_text)
+        llm = ChatOpenAI(model_name="gpt-4", temperature=0)
         
+        rag_prompt = PromptTemplate.from_template(
+            "주어진 문서를 참고하여 사용자의 질문에 답변을 해줘.\n\n질문:{question}\n\n문서:{context}"
+        )
+        
+        rag_chain = (
+            {"context": retriever, "question": RunnablePassthrough()} 
+            | rag_prompt
+            | llm
+            | StrOutputParser()
+        )
+        
+        def log_and_invoke(query):
+            docs = retriever.get_relevant_documents(query)
+            print(f"Retrieved {len(docs)} documents for query: {query}")
+            print(docs)
+            
+            return rag_chain.invoke(query)
+
+        response = log_and_invoke(query_text)
+
         return response
 
 
