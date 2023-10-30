@@ -1,7 +1,7 @@
 import streamlit as st
 
 from pdfminer.high_level import extract_text
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import Chroma
 from langchain.embeddings import OpenAIEmbeddings
 
@@ -23,9 +23,10 @@ def generate_response(uploaded_file, query_text):
         raw_text = extract_text(uploaded_file)
         
         # splitter
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size = 500,
-            chunk_overlap  = 20,
+        text_splitter = CharacterTextSplitter(
+            separator = "\n\n",
+            chunk_size = 1000,
+            chunk_overlap  = 200,
             length_function = len,
             is_separator_regex = False,
         )
