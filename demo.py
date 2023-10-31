@@ -32,26 +32,38 @@ def generate_response(uploaded_file, query_text, callback):
     if uploaded_file is not None:
         
         # loader
-        raw_text =
+        raw_text = extract_text(uploaded_file)
         
         # splitter
-        text_splitter = 
-        all_splits = 
+        text_splitter = CharacterTextSplitter(
+            separator = "\n\n",
+            chunk_size = 1000,
+            chunk_overlap  = 200,
+            length_function = len,
+            is_separator_regex = False,
+        )
+        all_splits = text_splitter.create_documents([raw_text])
         
 
         # storage
-        vectorstore = 
+        vectorstore = Chroma.from_documents(documents=all_splits, embedding=OpenAIEmbeddings())
         
         # retriever
-        retriever = 
+        retriever = vectorstore.as_retriever(search_kwargs=dict(k=1))
         
         # generator
-        llm = 
+        llm = ChatOpenAI(model_name="gpt-4", temperature=0, streaming=True, callbacks=[callback])
         
-        rag_prompt = 
+        rag_prompt = PromptTemplate.from_template(
+            "주어진 문서를 참고하여 사용자의 질문에 답변을 해줘.\n\n질문:{question}\n\n문서:{context}"
+        )
         
-        # Chaining
-        rag_chain = 
+        rag_chain = (
+            {"context": retriever, "question": RunnablePassthrough()} 
+            | rag_prompt
+            | llm
+            | StrOutputParser()
+        )
         
         def log_and_invoke(query):
             docs = retriever.get_relevant_documents(query)
@@ -93,3 +105,5 @@ if prompt := st.chat_input():
         st.session_state["messages"].append(
             ChatMessage(role="assistant", content=response)
         )
+        
+# streamlit run demo.py

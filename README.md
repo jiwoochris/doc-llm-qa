@@ -13,10 +13,26 @@
 - **문서 검색 기능**: 사용자의 질문과 관련된 문서를 효과적으로 찾아냅니다.
 - **자동 답변 생성**: GPT-4 모델을 기반으로 정확한 답변을 생성합니다.
 
+
 ## 🚀 **시작하기**
 
-다음의 명령어로 프로젝트를 클론하세요:
-
+1. 아래의 명령어를 사용하여 프로젝트를 클론합니다:
 ```bash
 git clone https://github.com/jiwoochris/doc-llm-qa.git
+```
+
+2. 새로운 conda 환경을 생성하고 활성화합니다:
+```bash
+conda create -n "doc"
+conda activate doc
+```
+
+3. 필요한 라이브러리들을 설치합니다:
+```bash
+pip install -r requirements.txt
+```
+
+4. 프로젝트를 실행합니다:
+```bash
+streamlit run demo.py
 ```
