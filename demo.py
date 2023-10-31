@@ -49,7 +49,7 @@ def generate_response(uploaded_file, query_text, callback):
         vectorstore = Chroma.from_documents(documents=all_splits, embedding=OpenAIEmbeddings())
         
         # retriever
-        retriever = vectorstore.as_retriever()
+        retriever = vectorstore.as_retriever(search_kwargs=dict(k=1))
         
         # generator
         llm = ChatOpenAI(model_name="gpt-4", temperature=0, streaming=True, callbacks=[callback])
