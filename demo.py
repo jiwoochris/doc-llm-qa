@@ -78,8 +78,8 @@ def generate_response(uploaded_file, query_text, callback):
 
 
 # Page title
-st.set_page_config(page_title='🦜🔗 Ask the Doc App')
-st.title('🦜🔗 Ask the Doc App')
+st.set_page_config(page_title='🦜🔗 문서 기반 질문 답변 챗봇')
+st.title('🦜🔗 문서 기반 질문 답변 챗봇')
 
 # File upload
 uploaded_file = st.file_uploader('Upload an article', type='pdf')
