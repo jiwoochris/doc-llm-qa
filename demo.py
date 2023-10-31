@@ -10,12 +10,24 @@ from langchain.schema.runnable import RunnablePassthrough
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 
+from langchain.callbacks.base import BaseCallbackHandler
+from langchain.schema import ChatMessage
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
+class StreamHandler(BaseCallbackHandler):
+    def __init__(self, container, initial_text=""):
+        self.container = container
+        self.text = initial_text
 
-def generate_response(uploaded_file, query_text):
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        self.text += token
+        self.container.markdown(self.text)
+
+
+def generate_response(uploaded_file, query_text, callback):
     # Load document if file is uploaded
     if uploaded_file is not None:
         
@@ -40,7 +52,7 @@ def generate_response(uploaded_file, query_text):
         retriever = vectorstore.as_retriever()
         
         # generator
-        llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+        llm = ChatOpenAI(model_name="gpt-4", temperature=0, streaming=True, callbacks=[callback])
         
         rag_prompt = PromptTemplate.from_template(
             "주어진 문서를 참고하여 사용자의 질문에 답변을 해줘.\n\n질문:{question}\n\n문서:{context}"
@@ -71,17 +83,25 @@ st.title('🦜🔗 Ask the Doc App')
 
 # File upload
 uploaded_file = st.file_uploader('Upload an article', type='pdf')
-# Query text
-query_text = st.text_input('Enter your question:', placeholder = '질문을 입력하세요', disabled=not uploaded_file)
 
-# Form input and query
-result = []
-with st.form('myform', clear_on_submit=True):
-    submitted = st.form_submit_button('Submit', disabled=not(uploaded_file and query_text))
-    if submitted:
-        with st.spinner('Calculating...'):
-            response = generate_response(uploaded_file, query_text)
-            result.append(response)
+if "messages" not in st.session_state:
+    st.session_state["messages"] = [
+        ChatMessage(
+            role="assistant", content='안녕하세요! 저는 문서를 기반으로 답변해주는 챗봇입니다. 어떤게 궁금하신가요?'
+        )
+    ]
 
-if len(result):
-    st.info(response)
+for msg in st.session_state.messages:
+    st.chat_message(msg.role).write(msg.content)
+
+if prompt := st.chat_input():
+    st.session_state.messages.append(ChatMessage(role="user", content=prompt))
+    st.chat_message("user").write(prompt)
+
+    with st.chat_message("assistant"):
+        stream_handler = StreamHandler(st.empty())
+
+        response = generate_response(uploaded_file, prompt, stream_handler)
+        st.session_state["messages"].append(
+            ChatMessage(role="assistant", content=response)
+        )
