@@ -105,3 +105,5 @@ if prompt := st.chat_input():
         st.session_state["messages"].append(
             ChatMessage(role="assistant", content=response)
         )
+        
+# streamlit run demo.py
