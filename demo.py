@@ -32,38 +32,26 @@ def generate_response(uploaded_file, query_text, callback):
     if uploaded_file is not None:
         
         # loader
-        raw_text = extract_text(uploaded_file)
+        raw_text =
         
         # splitter
-        text_splitter = CharacterTextSplitter(
-            separator = "\n\n",
-            chunk_size = 1000,
-            chunk_overlap  = 200,
-            length_function = len,
-            is_separator_regex = False,
-        )
-        all_splits = text_splitter.create_documents([raw_text])
+        text_splitter = 
+        all_splits = 
         
 
         # storage
-        vectorstore = Chroma.from_documents(documents=all_splits, embedding=OpenAIEmbeddings())
+        vectorstore = 
         
         # retriever
-        retriever = vectorstore.as_retriever(search_kwargs=dict(k=1))
+        retriever = 
         
         # generator
-        llm = ChatOpenAI(model_name="gpt-4", temperature=0, streaming=True, callbacks=[callback])
+        llm = 
         
-        rag_prompt = PromptTemplate.from_template(
-            "주어진 문서를 참고하여 사용자의 질문에 답변을 해줘.\n\n질문:{question}\n\n문서:{context}"
-        )
+        rag_prompt = 
         
-        rag_chain = (
-            {"context": retriever, "question": RunnablePassthrough()} 
-            | rag_prompt
-            | llm
-            | StrOutputParser()
-        )
+        # Chaining
+        rag_chain = 
         
         def log_and_invoke(query):
             docs = retriever.get_relevant_documents(query)
