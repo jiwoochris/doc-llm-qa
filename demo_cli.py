@@ -1,48 +1,38 @@
-import streamlit as st
-
+import sys
+import os
+from PyPDF2 import PdfReader
+from dotenv import load_dotenv
 from pdfminer.high_level import extract_text
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import Chroma
 from langchain.embeddings import OpenAIEmbeddings
-
 from langchain.chat_models import ChatOpenAI
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
-
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.schema import ChatMessage
 
-from dotenv import load_dotenv
-
 load_dotenv()
 
-from PyPDF2 import PdfReader
-
-class StreamHandler(BaseCallbackHandler):
-    def __init__(self, container, initial_text=""):
-        self.container = container
-        self.text = initial_text
+class CLIHandler(BaseCallbackHandler):
+    def __init__(self):
+        self.text = ""
 
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         self.text += token
-        self.container.markdown(self.text)
+        sys.stdout.write(token)
+        sys.stdout.flush()
 
-
-def generate_response(uploaded_file, query_text, callback):
-    # Load document if file is uploaded
-    if uploaded_file is not None:
-        
-        # loader
-        reader = PdfReader(uploaded_file)
+def generate_response(file_path, query_text, callback):
+    if file_path:
+        reader = PdfReader(file_path)
         raw_text = ""
-        for i, page in enumerate(reader.pages):
+        for page in reader.pages:
             text = page.extract_text()
             if text:
                 raw_text += (text + " ")
         
-        
-        # splitter
         text_splitter = CharacterTextSplitter(
             separator = "\n",
             chunk_size = 1000,
@@ -51,24 +41,14 @@ def generate_response(uploaded_file, query_text, callback):
             is_separator_regex = False,
         )
         all_splits = text_splitter.create_documents([raw_text])
-        
-        print(all_splits)
-        print(len(all_splits))
-        
 
-        # storage
         vectorstore = Chroma.from_documents(documents=all_splits, embedding=OpenAIEmbeddings())
-        
-        # retriever
         retriever = vectorstore.as_retriever(search_kwargs=dict(k=3))
         
-        # generator
         llm = ChatOpenAI(model_name="gpt-4", temperature=0, streaming=True, callbacks=[callback])
-        
         rag_prompt = PromptTemplate.from_template(
             "주어진 문서를 참고하여 사용자의 질문에 답변을 해줘.\n\n질문:{question}\n\n문서:{context}"
         )
-        
         rag_chain = (
             {"context": retriever, "question": RunnablePassthrough()} 
             | rag_prompt
@@ -83,38 +63,44 @@ def generate_response(uploaded_file, query_text, callback):
             
             return rag_chain.invoke(query)
 
-        response = log_and_invoke(query_text)
+        return log_and_invoke(query_text)
 
-        return response
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <PDF_FILE_PATH>")
+        sys.exit(1)
 
+    file_path = sys.argv[1]
+    if not os.path.exists(file_path):
+        print(f"File {file_path} does not exist.")
+        sys.exit(1)
 
-# Page title
-st.set_page_config(page_title='🦜🔗 문서 기반 질문 답변 챗봇')
-st.title('🦜🔗 문서 기반 질문 답변 챗봇')
+    while True:
+        query_text = input("Enter your query (or 'exit' to quit): ").strip()
+        if query_text.lower() == 'exit':
+            break
 
-# File upload
-uploaded_file = st.file_uploader('Upload an article', type='pdf')
+        stream_handler = CLIHandler()
+        response = generate_response(file_path, query_text, stream_handler)
+        print("\nAssistant:", response)
 
-if "messages" not in st.session_state:
-    st.session_state["messages"] = [
-        ChatMessage(
-            role="assistant", content='안녕하세요! 저는 문서를 기반으로 답변해주는 챗봇입니다. 어떤게 궁금하신가요?'
-        )
-    ]
+def main():
+    # Hardcoded file path
+    file_path = "data\(23.12.8. 정정) 2023000532 청계리버뷰자이 입주자모집공고문.pdf"
 
-for msg in st.session_state.messages:
-    st.chat_message(msg.role).write(msg.content)
+    if not os.path.exists(file_path):
+        print(f"File {file_path} does not exist.")
+        sys.exit(1)
 
-if prompt := st.chat_input():
-    st.session_state.messages.append(ChatMessage(role="user", content=prompt))
-    st.chat_message("user").write(prompt)
+    while True:
+        query_text = input("Enter your query (or 'exit' to quit): ").strip()
+        if query_text.lower() == 'exit':
+            break
 
-    with st.chat_message("assistant"):
-        stream_handler = StreamHandler(st.empty())
+        stream_handler = CLIHandler()
+        response = generate_response(file_path, query_text, stream_handler)
+        print("\nAssistant:", response)
 
-        response = generate_response(uploaded_file, prompt, stream_handler)
-        st.session_state["messages"].append(
-            ChatMessage(role="assistant", content=response)
-        )
-        
-# streamlit run demo.py
+if __name__ == "__main__":
+    main()
+
