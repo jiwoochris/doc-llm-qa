@@ -26,7 +26,6 @@ class CLIHandler(BaseCallbackHandler):
 
 
 def main():
-    # 기존 코드와 동일
     file_path = "data/(23.12.8. 정정) 2023000532 청계리버뷰자이 입주자모집공고문.pdf"
 
     if not os.path.exists(file_path):

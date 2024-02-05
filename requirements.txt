@@ -1,5 +1,7 @@
 streamlit
 PyPDF2
+pdfminer
+pdfminer.six
 langchain
 python-dotenv
 openai
